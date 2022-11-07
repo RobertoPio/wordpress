@@ -1,0 +1,96 @@
+Resources:
+  WebServerSg:
+    Type: AWS::EC2::SecurityGroup
+    Properties: 
+      GroupDescription: Allow access on ports 80 and 22
+      GroupName: MywebServer SG
+      SecurityGroupIngress: 
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: MyWebServer SG
+      VpcId: !Ref myVPC
+
+  myVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+
+  myInternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+      - Key: nome
+        Value: prova
+    
+  myRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachGateway
+    Properties:
+       RouteTableId:
+         Ref: myRouteTable
+       DestinationCidrBlock: 0.0.0.0/0
+       GatewayId:
+         Ref: myInternetGateway
+
+  myRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:  
+        Ref: myVPC
+      Tags:
+      - Key: stack
+        Value: production
+      
+      
+
+  mySubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref myVPC
+      CidrBlock: 10.0.0.0/24
+      AvailabilityZone: "eu-central-1a"
+      MapPublicIpOnLaunch: true 
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId:
+        Ref: myVPC
+      InternetGatewayId:
+        Ref: myInternetGateway
+
+
+
+
+
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties: 
+      InstanceType: t2.micro
+      KeyName: webserverkey
+      ImageId: ami-070b208e993b59cea
+      NetworkInterfaces:
+          DeviceIndex: "0"
+          GroupSet: 
+            - !Ref WebServerSg
+          SubnetId: !Ref mySubnet
+      Tags:
+        - Key: Name
+          Value: test
+      UserData:
+        Fn::Base64:
+          !Sub |
+            #!/bin/bash -xe
+            sudo su
+            yum update -y
+            yum install -y httpd
+            service httpd enable 
+            service httpd start
